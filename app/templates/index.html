@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+{% block title %}Daily Feed · {{ target_date.strftime("%Y-%m-%d") }}{% endblock %}
+{% block content %}
+<style>
+  .paper-card {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    cursor: pointer;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .paper-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+  }
+  .thumb-box {
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .thumb-box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+  .summary-line {
+    min-height: 48px;
+  }
+  .chip {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .masonry {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+  .masonry-item {
+    width: 100%;
+    height: 100%;
+  }
+  .thumb-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+  }
+.thumb-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+  display: block;
+  cursor: grab;
+  transform-origin: center center;
+}
+  .paper-card-muted {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+  }
+  .paper-card-muted:hover {
+    opacity: 0.7;
+    filter: grayscale(0.3);
+  }
+.paper-card-highlight {
+  box-shadow: 0 14px 36px rgba(15, 118, 110, 0.18);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+}
+.logo-btn { padding: 6px 10px; }
+.logo-icon { height: 16px; width: 16px; display: block; }
+.btn-dark .logo-icon {
+  filter: invert(1);
+}
+.filter-pill {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 6px 10px;
+  border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .group-header {
+    background: linear-gradient(90deg, rgba(15,118,110,0.08), transparent);
+    border-radius: 12px;
+  }
+  .fav-list-scroll {
+    max-height: 50vh;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+  .fav-actions {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), #fff);
+    padding-top: 8px;
+  }
+</style>
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-3">
+  <div>
+    <h1 class="h3 mb-1">Papers for {{ target_date.strftime("%Y-%m-%d") }}</h1>
+    <p class="text-muted mb-0">Curated feed for {{ g.user['username'] if g.user else 'guest' }}.</p>
+  </div>
+  <form class="d-flex align-items-center mt-3 mt-md-0" method="get">
+    <label for="date" class="me-2 text-muted">Pick a date</label>
+    <input type="date" id="date" name="date" class="form-control" value="{{ target_date.strftime('%Y-%m-%d') }}">
+    <button class="btn btn-primary ms-2" type="submit">Go</button>
+  </form>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-start">
+    <div>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="filter-pill">分类：{% if selected_categories %}{{ selected_categories|join(', ') }}{% else %}全部{% endif %}</span>
+        {% set wl = tag_filters.get('whitelist', []) %}
+        {% set bl = tag_filters.get('blacklist', []) %}
+        <span class="filter-pill">白名单：{% if wl %}{{ wl|join(', ') }}{% else %}未设置{% endif %}</span>
+        <span class="filter-pill">黑名单：{% if bl %}{{ bl|join(', ') }}{% else %}未设置{% endif %}</span>
+        <span class="filter-pill">相似度来源：{% if selected_favorite_names %}{{ selected_favorite_names|join(', ') }}{% else %}全部收藏夹{% endif %}</span>
+      </div>
+      <p class="text-muted small mb-0 mt-2">过滤条件在 Settings 中设置。</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('feed.settings') }}">Settings</a>
+      <a class="btn btn-light btn-sm" href="{{ url_for('feed.index', date=target_date.strftime('%Y-%m-%d')) }}">刷新</a>
+    </div>
+  </div>
+</div>
+
+{% if not papers %}
+  <div class="alert alert-info shadow-sm">No papers found for this date. Try another day.</div>
+{% else %}
+  {% for group in paper_groups %}
+    {% if group.papers %}
+      <div class="d-flex justify-content-between align-items-center mb-2 mt-4 group-header px-3 py-2">
+        <div>
+          <h2 class="h6 mb-0">{{ group.title }}</h2>
+          <p class="text-muted small mb-0">{{ group.subtitle }}</p>
+        </div>
+        <span class="badge bg-secondary-subtle text-dark">{{ group.papers|length }}</span>
+      </div>
+      <div class="masonry">
+        {% for paper in group.papers %}
+        {% set paper_loop = loop %}
+        <div class="masonry-item">
+          <div class="card shadow-sm border-0 paper-card position-relative {% if paper.filter_group == 'black' %}paper-card-muted{% endif %} {% if paper.filter_group == 'white' %}paper-card-highlight{% endif %}" data-paper-id="{{ paper.id }}" id="paper-{{ paper.id }}" onclick="window.location='{{ url_for('feed.paper_detail', paper_id=paper.id) }}'">
+            {% if paper.filter_group == 'black' %}
+              <span class="position-absolute top-0 end-0 m-2 badge bg-dark text-white opacity-75">黑名单</span>
+            {% elif paper.filter_group == 'white' %}
+              <span class="position-absolute top-0 end-0 m-2 badge bg-primary-subtle text-primary">白名单</span>
+            {% endif %}
+            <div class="thumb-box">
+              {% if paper.thumb_small_url or paper.image_url %}
+                <img src="{{ paper.thumb_small_url or paper.image_url }}" alt="Thumbnail for {{ paper.id }}">
+              {% else %}
+                <span class="text-muted">No thumbnail</span>
+              {% endif %}
+            </div>
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-secondary">{{ paper.category or 'Unknown' }}</span>
+                  {% if paper.similarity is not none %}
+                    {% set sim = paper.similarity %}
+                    {% set sim_class = 'bg-success-subtle text-success' %}
+                    {% if sim < 0.7 %}{% set sim_class = 'bg-warning-subtle text-dark' %}{% endif %}
+                    {% if sim < 0.4 %}{% set sim_class = 'bg-secondary-subtle text-secondary' %}{% endif %}
+                    <span class="chip {{ sim_class }}">{{ "%.2f"|format(sim) }}</span>
+                  {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-1">
+                  {% for tag in paper.tags %}
+                    <span class="badge rounded-pill text-bg-light border">{{ tag }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="mb-2">
+                <h2 class="h6 mb-1">
+                  {{ paper.title_zh or paper.title_en }} <span class="text-muted small">({{ paper_loop.index }}/{{ paper_loop.length }})</span>
+                </h2>
+                <p class="text-muted small mb-0 fst-italic">{{ paper.title_en }}</p>
+              </div>
+              <p class="mb-2 summary-line">{{ paper.summary_zh or paper.summary_en or paper.abstract_zh or paper.abstract_en[:140] ~ '…' }}</p>
+              <div class="mt-auto d-flex justify-content-between align-items-center gap-2 flex-wrap position-relative">
+                <div class="d-flex gap-2 flex-wrap">
+                  <button class="btn btn-sm btn-outline-secondary position-relative" onclick="event.stopPropagation(); previewThumb('{{ paper.thumb_full_url or paper.image_url or '' }}')" aria-label="Preview thumbnail">🔍</button>
+                  {% set saved = paper.id in favorite_paper_ids %}
+                  <button class="btn btn-sm position-relative fav-btn {% if saved %}btn-success{% else %}btn-outline-success{% endif %}" data-paper-id="{{ paper.id }}" data-saved="{{ 'true' if saved else 'false' }}" onclick="event.stopPropagation(); openFavModal('{{ paper.id }}', this)">{{ '★ 已收藏' if saved else '☆ 收藏' }}</button>
+                  {% if paper.github_url %}
+                    <a class="btn btn-sm btn-outline-dark position-relative d-flex align-items-center justify-content-center logo-btn" href="{{ paper.github_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                      <svg class="logo-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M12 1C5.923 1 1 5.923 1 12c0 4.867 3.149 8.979 7.521 10.436.55.096.756-.233.756-.522 0-.262-.013-1.128-.013-2.049-2.764.509-3.479-.674-3.699-1.292-.124-.317-.66-1.293-1.127-1.554-.385-.207-.936-.715-.014-.729.866-.014 1.485.797 1.691 1.128.99 1.663 2.571 1.196 3.204.907.096-.715.385-1.196.701-1.471-2.448-.275-5.005-1.224-5.005-5.432 0-1.196.426-2.186 1.128-2.956-.111-.275-.496-1.402.11-2.915 0 0 .921-.288 3.024 1.128a10.193 10.193 0 0 1 2.75-.371c.936 0 1.871.123 2.75.371 2.104-1.43 3.025-1.128 3.025-1.128.605 1.513.221 2.64.111 2.915.701.77 1.127 1.747 1.127 2.956 0 4.222-2.571 5.157-5.019 5.432.399.344.743 1.004.743 2.035 0 1.471-.014 2.654-.014 3.025 0 .289.206.632.756.522C19.851 20.979 23 16.854 23 12c0-6.077-4.922-11-11-11Z" />
+                      </svg>
+                      <span class="visually-hidden">GitHub</span>
+                    </a>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <a class="btn btn-sm btn-outline-secondary position-relative d-flex align-items-center justify-content-center logo-btn" href="https://arxiv.org/abs/{{ paper.id }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                    <img src="{{ url_for('static', filename='logos/arxiv.png') }}" alt="arXiv" class="logo-icon">
+                    <span class="visually-hidden">arXiv</span>
+                  </a>
+                  <a class="btn btn-sm btn-outline-primary position-relative d-flex align-items-center justify-content-center logo-btn" href="https://www.alphaxiv.org/abs/{{ paper.id }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                    <img src="{{ url_for('static', filename='logos/alphaxiv.ico') }}" alt="alphaXiv" class="logo-icon">
+                    <span class="visually-hidden">alphaXiv</span>
+                  </a>
+                  <a class="btn btn-sm btn-outline-dark position-relative" href="https://papers.cool/arxiv/{{ paper.id }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">paper.cool</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+<script>
+  (() => {
+    let overlay = document.querySelector('.thumb-overlay');
+    let imgEl;
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    const applyTransform = () => {
+      if (!imgEl) return;
+      imgEl.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    };
+
+    const resetView = () => {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      applyTransform();
+    };
+
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'thumb-overlay';
+      overlay.innerHTML = '<img alt="thumbnail preview"/>';
+      document.body.appendChild(overlay);
+      imgEl = overlay.querySelector('img');
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target !== overlay) return;
+        overlay.style.display = 'none';
+        imgEl.src = '';
+        resetView();
+      });
+
+      imgEl.addEventListener('click', (e) => e.stopPropagation());
+
+      imgEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY;
+        const factor = delta > 0 ? 0.9 : 1.1;
+        scale *= factor;
+        // Keep scale within a practical range to avoid runaway values
+        scale = Math.min(Math.max(scale, 0.1), 12);
+        applyTransform();
+      });
+
+      imgEl.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        dragStartX = e.clientX - translateX;
+        dragStartY = e.clientY - translateY;
+        imgEl.style.cursor = 'grabbing';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - dragStartX;
+        translateY = e.clientY - dragStartY;
+        applyTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          imgEl.style.cursor = 'grab';
+        }
+      });
+    } else {
+      imgEl = overlay.querySelector('img');
+    }
+
+    window.previewThumb = (src) => {
+      if (!src) return;
+      imgEl.src = src;
+      overlay.style.display = 'flex';
+      resetView();
+    };
+
+    // Favorites modal (lightweight)
+    const favModal = document.createElement('div');
+    favModal.className = 'modal fade';
+    favModal.innerHTML = `
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">保存到收藏夹</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="favForm" class="d-flex flex-column gap-3">
+              <input type="hidden" name="paper_id" id="favPaperId" value="">
+              <div id="favList" class="fav-list-scroll text-muted small">加载中...</div>
+              <div class="fav-actions">
+                <div class="mb-3">
+                  <label class="form-label">新建收藏夹</label>
+                  <div class="input-group">
+                    <input class="form-control" type="text" name="new_favorite_name" id="newFavoriteName" placeholder="e.g. Vision 2025">
+                    <button class="btn btn-outline-primary" type="button" id="createFavoriteBtn">新建</button>
+                  </div>
+                </div>
+                <button class="btn btn-primary w-100" type="submit">保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(favModal);
+    let bsModal = null;
+    let manualBackdrop = null;
+
+    function showFavModal() {
+      if (!bsModal && window.bootstrap) {
+        bsModal = new bootstrap.Modal(favModal);
+      }
+      if (bsModal) {
+        bsModal.show();
+        return;
+      }
+      favModal.classList.add('show');
+      favModal.style.display = 'block';
+      favModal.removeAttribute('aria-hidden');
+      favModal.setAttribute('aria-modal', 'true');
+      if (!manualBackdrop) {
+        manualBackdrop = document.createElement('div');
+        manualBackdrop.className = 'modal-backdrop fade show';
+        document.body.appendChild(manualBackdrop);
+      }
+    }
+
+    function hideFavModal() {
+      if (bsModal) {
+        bsModal.hide();
+        return;
+      }
+      favModal.classList.remove('show');
+      favModal.style.display = 'none';
+      favModal.setAttribute('aria-hidden', 'true');
+      favModal.removeAttribute('aria-modal');
+      if (manualBackdrop) {
+        manualBackdrop.remove();
+        manualBackdrop = null;
+      }
+    }
+
+    const closeBtn = favModal.querySelector('.btn-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideFavModal();
+      });
+    }
+
+    window.openFavModal = (paperId, btnEl) => {
+      const list = document.getElementById('favList');
+      const form = document.getElementById('favForm');
+      const createBtn = document.getElementById('createFavoriteBtn');
+      const newFavInput = document.getElementById('newFavoriteName');
+      document.getElementById('favPaperId').value = paperId;
+      list.innerHTML = '<p class="text-muted small mb-2">加载中...</p>';
+      showFavModal();
+
+      const getCheckedIds = () => {
+        const ids = new Set();
+        list.querySelectorAll('input[name="favorite_ids"]:checked').forEach(cb => {
+          ids.add(String(cb.value));
+        });
+        return ids;
+      };
+
+      const populate = (data, opts = {}) => {
+        const { autoCheckId = null, preserveChecked = null } = opts;
+        const preserved = new Set((preserveChecked || []).map(v => String(v)));
+        if (autoCheckId !== null && autoCheckId !== undefined) {
+          preserved.add(String(autoCheckId));
+        }
+        list.innerHTML = '';
+        const favs = data.favorites || [];
+        let alreadyIn = false;
+        if (favs.length) {
+          favs.forEach(f => {
+            const id = `modal-fav-${f.id}`;
+            const simVal = typeof f.similarity === 'number' ? f.similarity : parseFloat(f.similarity);
+            if (f.has_paper) alreadyIn = true;
+            const shouldCheck = f.has_paper || f.is_top || preserved.has(String(f.id));
+            const simLabel = Number.isFinite(simVal) ? ` <span class="text-muted small">(${simVal.toFixed(2)})</span>` : '';
+            const item = document.createElement('div');
+            item.className = 'form-check';
+            item.innerHTML = `<input class="form-check-input" type="checkbox" name="favorite_ids" value="${f.id}" id="${id}" ${shouldCheck ? 'checked' : ''}><label class="form-check-label" for="${id}">${f.name}${simLabel}</label>`;
+            list.appendChild(item);
+          });
+        } else {
+          list.innerHTML = '<p class="text-muted small mb-2">暂无收藏夹，请新建一个。</p>';
+        }
+        if (btnEl && alreadyIn) {
+          markFavButton(btnEl, true);
+        }
+      };
+
+      const fetchFavorites = () => {
+        return fetch({{ url_for('feed.favorites_api')|tojson }} + '?paper_id=' + encodeURIComponent(paperId), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(res => res.ok ? res.json() : Promise.reject());
+      };
+
+      fetchFavorites()
+        .then(data => populate(data))
+        .catch(() => {
+          list.innerHTML = '<p class="text-danger small">无法加载收藏夹列表</p>';
+        });
+
+      const postSave = () => {
+        const formData = new FormData(form);
+        fetch({{ url_for('feed.add_to_favorites')|tojson }}, {
+          method: 'POST',
+          body: formData,
+        }).then(() => {
+          hideFavModal();
+          if (btnEl) markFavButton(btnEl, true);
+        }).catch(() => {
+          hideFavModal();
+        });
+      };
+
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        postSave();
+      };
+
+      if (createBtn) {
+        createBtn.onclick = () => {
+          const name = (newFavInput?.value || '').trim();
+          if (!name) return;
+          const preserved = getCheckedIds();
+          fetch({{ url_for('feed.create_favorite')|tojson }}, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: new URLSearchParams({ name })
+          }).then(res => {
+            if (!res.ok) throw new Error();
+            return res.json().catch(() => ({}));
+          }).then(payload => {
+            const createdId = payload?.id;
+            newFavInput.value = '';
+            return fetchFavorites().then(data => populate(data, { autoCheckId: createdId, preserveChecked: preserved }));
+          }).catch(() => {
+            fetchFavorites().then(data => populate(data, { preserveChecked: preserved })).catch(() => {});
+          });
+        };
+      }
+    };
+
+    function markFavButton(btn, active) {
+      if (active) {
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-success');
+        btn.innerText = '★ 已收藏';
+        btn.dataset.saved = 'true';
+      } else {
+        btn.classList.add('btn-outline-success');
+        btn.classList.remove('btn-success');
+        btn.innerText = '☆ 收藏';
+        btn.dataset.saved = 'false';
+      }
+    }
+
+    document.querySelectorAll('.fav-btn').forEach(btn => {
+      const active = btn.dataset.saved === 'true';
+      if (active) {
+        markFavButton(btn, true);
+      }
+    });
+
+    const targetDate = {{ target_date.strftime('%Y-%m-%d')|tojson }};
+    const lastSeenId = {{ (history['paper_id'] if history else None)|tojson }};
+    const lastPosition = {{ (history['position'] if history else 0)|tojson }};
+    const cards = document.querySelectorAll('.paper-card');
+    let lastSeen = lastSeenId;
+
+    if (lastPosition) {
+      window.scrollTo({ top: lastPosition, behavior: 'auto' });
+    } else if (lastSeenId) {
+      const el = document.getElementById(`paper-${lastSeenId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    if (!cards.length) return;
+    let saveTimeout;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          lastSeen = entry.target.dataset.paperId;
+          scheduleSave();
+        }
+      });
+    }, { threshold: 0.5 });
+
+    cards.forEach(card => observer.observe(card));
+
+    function scheduleSave() {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        if (!lastSeen) return;
+        fetch({{ url_for('feed.save_history')|tojson }}, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paper_id: lastSeen, position: window.scrollY, date: targetDate })
+        }).catch(() => {});
+      }, 800);
+    }
+  })();
+</script>
+{% endblock %}

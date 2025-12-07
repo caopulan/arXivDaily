@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Settings · ArXivDaily{% endblock %}
+{% block content %}
+<style>
+  .settings-card {
+    border-radius: 14px;
+  }
+  .pill-check {
+    border: 1px solid #e5e7eb;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .pill-check input {
+    display: none;
+  }
+  .pill-check.active {
+    background: #0f766e;
+    color: #fff;
+    border-color: #0f766e;
+    box-shadow: 0 8px 18px rgba(15, 118, 110, 0.15);
+  }
+</style>
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Settings</h1>
+    <p class="text-muted mb-0">在此配置分类、标签黑/白名单、相似度来源收藏夹。</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">返回列表</a>
+</div>
+
+<div class="card shadow-sm border-0 settings-card">
+  <div class="card-body">
+    <form method="post" class="row g-4">
+      <div class="col-lg-6">
+        <h6 class="text-muted mb-2">Categories</h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% for cat in category_options %}
+            {% set checked = cat in filters.categories %}
+            <label class="pill-check {% if checked %}active{% endif %}">
+              <input type="checkbox" name="category" value="{{ cat }}" {% if checked %}checked{% endif %}>
+              {{ cat }}
+            </label>
+          {% endfor %}
+        </div>
+        <p class="text-muted small mt-2 mb-0">文章可能有多个分类，只要包含任意勾选分类即展示。</p>
+      </div>
+      <div class="col-lg-6">
+        <h6 class="text-muted mb-2">相似度来源收藏夹</h6>
+        {% if user_favorites %}
+          <div class="d-flex flex-wrap gap-2">
+            {% for fav in user_favorites %}
+              {% set checked = fav.id in filters.sim_favorites %}
+              <label class="pill-check {% if checked %}active{% endif %}">
+                <input type="checkbox" name="sim_favorite" value="{{ fav.id }}" {% if checked %}checked{% endif %}>
+                {{ fav.name }}
+              </label>
+            {% endfor %}
+          </div>
+          <p class="text-muted small mt-2 mb-0">未选择时默认使用全部收藏夹计算相似度。</p>
+        {% else %}
+          <p class="text-muted small mb-0">暂无收藏夹，先去收藏几篇论文吧。</p>
+        {% endif %}
+      </div>
+      <div class="col-lg-6">
+        <h6 class="text-muted mb-2">Tag 白名单</h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% set wl = filters.tags.whitelist if filters.tags else [] %}
+          {% for tag in tag_options %}
+            {% set checked = tag in wl %}
+            <label class="pill-check {% if checked %}active{% endif %}">
+              <input type="checkbox" name="tag_whitelist" value="{{ tag }}" {% if checked %}checked{% endif %}>
+              {{ tag }}
+            </label>
+          {% endfor %}
+        </div>
+        <p class="text-muted small mt-2 mb-0">命中任意白名单标签的论文归为“白名单论文”。</p>
+      </div>
+      <div class="col-lg-6">
+        <h6 class="text-muted mb-2">Tag 黑名单</h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% set bl = filters.tags.blacklist if filters.tags else [] %}
+          {% for tag in tag_options %}
+            {% set checked = tag in bl %}
+            <label class="pill-check {% if checked %}active{% endif %}">
+              <input type="checkbox" name="tag_blacklist" value="{{ tag }}" {% if checked %}checked{% endif %}>
+              {{ tag }}
+            </label>
+          {% endfor %}
+        </div>
+        <p class="text-muted small mt-2 mb-0">命中任意黑名单标签的论文将归为“黑名单论文”，优先级高于白名单。</p>
+      </div>
+      <div class="col-12 d-flex gap-2 mt-2">
+        <button class="btn btn-primary" type="submit">保存设置</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">返回列表</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Toggle pill active class on change for instant feedback
+  document.querySelectorAll('.pill-check input').forEach((input) => {
+    input.addEventListener('change', () => {
+      input.parentElement.classList.toggle('active', input.checked);
+    });
+  });
+</script>
+{% endblock %}

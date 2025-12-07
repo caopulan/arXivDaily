@@ -1,0 +1,12 @@
+.env
+.venv
+__pycache__/
+*.pyc
+instance/
+*.db
+*.sqlite
+static/thumbnails/
+app/static/thumbnails/
+.DS_Store
+.idea/
+arXivDaily-data/
