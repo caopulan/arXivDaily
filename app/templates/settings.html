@@ -21,20 +21,43 @@
     border-color: #0f766e;
     box-shadow: 0 8px 18px rgba(15, 118, 110, 0.15);
   }
+  .segmented-toggle label {
+    border: 1px solid #e5e7eb;
+    padding: 8px 14px;
+    border-radius: 999px;
+    transition: all 0.12s ease;
+    font-weight: 600;
+    box-shadow: 0 6px 14px rgba(15, 118, 110, 0.08);
+  }
+  .segmented-toggle .btn-check:checked + label {
+    background: linear-gradient(90deg, #0ea5e9, #0f766e);
+    color: #fff;
+    border-color: #0f766e;
+  }
 </style>
 <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-3">
   <div>
     <h1 class="h4 mb-1">Settings</h1>
-    <p class="text-muted mb-0">在此配置分类、标签黑/白名单、相似度来源收藏夹。</p>
+    <p class="text-muted mb-0">{{ lang_copy.settings_intro }}</p>
   </div>
-  <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">返回列表</a>
+  <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">{{ lang_copy.settings_back }}</a>
 </div>
 
 <div class="card shadow-sm border-0 settings-card">
   <div class="card-body">
     <form method="post" class="row g-4">
+      <div class="col-12">
+        <h6 class="text-muted mb-2">{{ lang_copy.language_label }}</h6>
+        <p class="text-muted small mb-2">{{ lang_copy.language_helper }}</p>
+        <div class="segmented-toggle d-inline-flex gap-2">
+          <input type="radio" class="btn-check" name="language_preference" id="langEn" value="en" {% if current_language == 'en' %}checked{% endif %}>
+          <label class="btn" for="langEn">{{ lang_copy.language_option_en }}</label>
+          <input type="radio" class="btn-check" name="language_preference" id="langZh" value="zh" {% if current_language == 'zh' %}checked{% endif %}>
+          <label class="btn" for="langZh">{{ lang_copy.language_option_zh }}</label>
+        </div>
+      </div>
       <div class="col-lg-6">
-        <h6 class="text-muted mb-2">Categories</h6>
+        <h6 class="text-muted mb-2">{{ lang_copy.filters_categories_label }}</h6>
         <div class="d-flex flex-wrap gap-2">
           {% for cat in category_options %}
             {% set checked = cat in filters.categories %}
@@ -44,10 +67,10 @@
             </label>
           {% endfor %}
         </div>
-        <p class="text-muted small mt-2 mb-0">文章可能有多个分类，只要包含任意勾选分类即展示。</p>
+        <p class="text-muted small mt-2 mb-0">{{ lang_copy.settings_categories_hint }}</p>
       </div>
       <div class="col-lg-6">
-        <h6 class="text-muted mb-2">相似度来源收藏夹</h6>
+        <h6 class="text-muted mb-2">{{ lang_copy.settings_similarity_heading }}</h6>
         {% if user_favorites %}
           <div class="d-flex flex-wrap gap-2">
             {% for fav in user_favorites %}
@@ -58,13 +81,13 @@
               </label>
             {% endfor %}
           </div>
-          <p class="text-muted small mt-2 mb-0">未选择时默认使用全部收藏夹计算相似度。</p>
+          <p class="text-muted small mt-2 mb-0">{{ lang_copy.settings_similarity_hint }}</p>
         {% else %}
-          <p class="text-muted small mb-0">暂无收藏夹，先去收藏几篇论文吧。</p>
+          <p class="text-muted small mb-0">{{ lang_copy.settings_similarity_empty }}</p>
         {% endif %}
       </div>
       <div class="col-lg-6">
-        <h6 class="text-muted mb-2">Tag 白名单</h6>
+        <h6 class="text-muted mb-2">{{ lang_copy.settings_whitelist_heading }}</h6>
         <div class="d-flex flex-wrap gap-2">
           {% set wl = filters.tags.whitelist if filters.tags else [] %}
           {% for tag in tag_options %}
@@ -75,10 +98,10 @@
             </label>
           {% endfor %}
         </div>
-        <p class="text-muted small mt-2 mb-0">命中任意白名单标签的论文归为“白名单论文”。</p>
+        <p class="text-muted small mt-2 mb-0">{{ lang_copy.settings_whitelist_hint }}</p>
       </div>
       <div class="col-lg-6">
-        <h6 class="text-muted mb-2">Tag 黑名单</h6>
+        <h6 class="text-muted mb-2">{{ lang_copy.settings_blacklist_heading }}</h6>
         <div class="d-flex flex-wrap gap-2">
           {% set bl = filters.tags.blacklist if filters.tags else [] %}
           {% for tag in tag_options %}
@@ -89,11 +112,11 @@
             </label>
           {% endfor %}
         </div>
-        <p class="text-muted small mt-2 mb-0">命中任意黑名单标签的论文将归为“黑名单论文”，优先级高于白名单。</p>
+        <p class="text-muted small mt-2 mb-0">{{ lang_copy.settings_blacklist_hint }}</p>
       </div>
       <div class="col-12 d-flex gap-2 mt-2">
-        <button class="btn btn-primary" type="submit">保存设置</button>
-        <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">返回列表</a>
+        <button class="btn btn-primary" type="submit">{{ lang_copy.settings_save }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('feed.index') }}">{{ lang_copy.settings_back }}</a>
       </div>
     </form>
   </div>

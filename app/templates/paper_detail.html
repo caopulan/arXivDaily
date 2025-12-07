@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ paper.title_zh or paper.title_en }}{% endblock %}
+{% block title %}{{ paper.display_title }}{% endblock %}
 {% block content %}
 <style>
   .logo-btn {
@@ -14,8 +14,10 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
           <div>
             <p class="text-muted mb-1">{{ paper.category or 'Unknown category' }}</p>
-            <h1 class="h4 mb-1">{{ paper.title_zh or paper.title_en }}</h1>
-            <p class="text-muted fst-italic">{{ paper.title_en }}</p>
+            <h1 class="h4 mb-1">{{ paper.display_title }}</h1>
+            {% if paper.display_subtitle %}
+              <p class="text-muted fst-italic mb-0">{{ paper.display_subtitle }}</p>
+            {% endif %}
             {% if paper.similarity is not none %}
             {% set sim = paper.similarity %}
             {% set sim_class = 'bg-success-subtle text-success' %}
@@ -33,10 +35,12 @@
           {% endif %}
         </div>
         <div class="mt-3">
-          <h6 class="text-muted">摘要 (中文)</h6>
-          <p>{{ paper.abstract_zh or '暂无翻译' }}</p>
-          <h6 class="text-muted mt-3">Abstract (English)</h6>
-          <p>{{ paper.abstract_en }}</p>
+          <h6 class="text-muted">{{ lang_copy.primary_abstract_label }}</h6>
+          <p>{{ paper.display_abstract_primary }}</p>
+          {% if paper.display_abstract_secondary %}
+            <h6 class="text-muted mt-3">{{ lang_copy.secondary_abstract_label }}</h6>
+            <p>{{ paper.display_abstract_secondary }}</p>
+          {% endif %}
           {% if paper.comment %}
           <h6 class="text-muted mt-3">Comment</h6>
           <p class="text-muted">{{ paper.comment }}</p>
@@ -65,14 +69,14 @@
     </div>
   </div>
   <div class="col-lg-4">
-    {% if paper.summary_zh or paper.summary_en %}
+    {% if paper.display_one_liner or paper.display_one_liner_secondary %}
       <div class="alert alert-secondary shadow-sm mb-3">
-        <strong>一句话总结：</strong>
-        {% if paper.summary_zh %}
-          <div class="mt-1">{{ paper.summary_zh }}</div>
+        <strong>{{ lang_copy.one_liner_label }}:</strong>
+        {% if paper.display_one_liner %}
+          <div class="mt-1">{{ paper.display_one_liner }}</div>
         {% endif %}
-        {% if paper.summary_en %}
-          <div class="mt-1 text-muted small">EN: {{ paper.summary_en }}</div>
+        {% if paper.display_one_liner_secondary %}
+          <div class="mt-1 text-muted small">{{ lang_copy.one_liner_secondary_prefix }}: {{ paper.display_one_liner_secondary }}</div>
         {% endif %}
       </div>
     {% endif %}
@@ -123,7 +127,7 @@
         <p class="mb-1"><strong>arXiv ID:</strong> {{ paper.id }}</p>
         <p class="mb-1"><strong>Published:</strong> {{ paper.pub_date }}</p>
         {% if paper.similarity is not none %}
-          <p class="mb-1"><strong>相似度:</strong> {{ "%.2f"|format(paper.similarity) }}</p>
+          <p class="mb-1"><strong>{{ lang_copy.similarity_label }}:</strong> {{ "%.2f"|format(paper.similarity) }}</p>
         {% endif %}
       </div>
     </div>

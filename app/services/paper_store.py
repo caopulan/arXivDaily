@@ -14,9 +14,12 @@ from flask import current_app
 
 
 def _data_dir() -> Path:
-    base = Path(current_app.config.get("PAPERS_DATA_DIR", "arXivDaily-data"))
+    base_cfg = current_app.config.get("PAPERS_DATA_DIR", "arXivDaily-data")
+    base = Path(base_cfg).expanduser()
     if not base.is_absolute():
-        base = Path(current_app.root_path) / base
+        base = (Path(current_app.root_path).parent / base).resolve()
+    else:
+        base = base.resolve()
     base.mkdir(parents=True, exist_ok=True)
     return base
 

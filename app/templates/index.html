@@ -124,18 +124,18 @@
   <div class="card-body d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-start">
     <div>
       <div class="d-flex flex-wrap gap-2">
-        <span class="filter-pill">分类：{% if selected_categories %}{{ selected_categories|join(', ') }}{% else %}全部{% endif %}</span>
+        <span class="filter-pill">{{ lang_copy.filters_categories_label }}: {% if selected_categories %}{{ selected_categories|join(', ') }}{% else %}{{ lang_copy.filters_all }}{% endif %}</span>
         {% set wl = tag_filters.get('whitelist', []) %}
         {% set bl = tag_filters.get('blacklist', []) %}
-        <span class="filter-pill">白名单：{% if wl %}{{ wl|join(', ') }}{% else %}未设置{% endif %}</span>
-        <span class="filter-pill">黑名单：{% if bl %}{{ bl|join(', ') }}{% else %}未设置{% endif %}</span>
-        <span class="filter-pill">相似度来源：{% if selected_favorite_names %}{{ selected_favorite_names|join(', ') }}{% else %}全部收藏夹{% endif %}</span>
+        <span class="filter-pill">{{ lang_copy.filters_whitelist_label }}: {% if wl %}{{ wl|join(', ') }}{% else %}{{ lang_copy.filters_not_set }}{% endif %}</span>
+        <span class="filter-pill">{{ lang_copy.filters_blacklist_label }}: {% if bl %}{{ bl|join(', ') }}{% else %}{{ lang_copy.filters_not_set }}{% endif %}</span>
+        <span class="filter-pill">{{ lang_copy.filters_similarity_label }}: {% if selected_favorite_names %}{{ selected_favorite_names|join(', ') }}{% else %}{{ lang_copy.filters_all_favorites }}{% endif %}</span>
       </div>
-      <p class="text-muted small mb-0 mt-2">过滤条件在 Settings 中设置。</p>
+      <p class="text-muted small mb-0 mt-2">{{ lang_copy.filters_hint }}</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('feed.settings') }}">Settings</a>
-      <a class="btn btn-light btn-sm" href="{{ url_for('feed.index', date=target_date.strftime('%Y-%m-%d')) }}">刷新</a>
+      <a class="btn btn-light btn-sm" href="{{ url_for('feed.index', date=target_date.strftime('%Y-%m-%d')) }}">{{ lang_copy.refresh }}</a>
     </div>
   </div>
 </div>
@@ -158,9 +158,9 @@
         <div class="masonry-item">
           <div class="card shadow-sm border-0 paper-card position-relative {% if paper.filter_group == 'black' %}paper-card-muted{% endif %} {% if paper.filter_group == 'white' %}paper-card-highlight{% endif %}" data-paper-id="{{ paper.id }}" id="paper-{{ paper.id }}" onclick="window.location='{{ url_for('feed.paper_detail', paper_id=paper.id) }}'">
             {% if paper.filter_group == 'black' %}
-              <span class="position-absolute top-0 end-0 m-2 badge bg-dark text-white opacity-75">黑名单</span>
+              <span class="position-absolute top-0 end-0 m-2 badge bg-dark text-white opacity-75">{{ lang_copy.badge_blacklist }}</span>
             {% elif paper.filter_group == 'white' %}
-              <span class="position-absolute top-0 end-0 m-2 badge bg-primary-subtle text-primary">白名单</span>
+              <span class="position-absolute top-0 end-0 m-2 badge bg-primary-subtle text-primary">{{ lang_copy.badge_whitelist }}</span>
             {% endif %}
             <div class="thumb-box">
               {% if paper.thumb_small_url or paper.image_url %}
@@ -189,16 +189,18 @@
               </div>
               <div class="mb-2">
                 <h2 class="h6 mb-1">
-                  {{ paper.title_zh or paper.title_en }} <span class="text-muted small">({{ paper_loop.index }}/{{ paper_loop.length }})</span>
+                  {{ paper.display_title }} <span class="text-muted small">({{ paper_loop.index }}/{{ paper_loop.length }})</span>
                 </h2>
-                <p class="text-muted small mb-0 fst-italic">{{ paper.title_en }}</p>
+                {% if paper.display_subtitle %}
+                  <p class="text-muted small mb-0 fst-italic">{{ paper.display_subtitle }}</p>
+                {% endif %}
               </div>
-              <p class="mb-2 summary-line">{{ paper.summary_zh or paper.summary_en or paper.abstract_zh or paper.abstract_en[:140] ~ '…' }}</p>
+              <p class="mb-2 summary-line">{{ paper.display_summary|truncate(220, True, '…') }}</p>
               <div class="mt-auto d-flex justify-content-between align-items-center gap-2 flex-wrap position-relative">
                 <div class="d-flex gap-2 flex-wrap">
                   <button class="btn btn-sm btn-outline-secondary position-relative" onclick="event.stopPropagation(); previewThumb('{{ paper.thumb_full_url or paper.image_url or '' }}')" aria-label="Preview thumbnail">🔍</button>
                   {% set saved = paper.id in favorite_paper_ids %}
-                  <button class="btn btn-sm position-relative fav-btn {% if saved %}btn-success{% else %}btn-outline-success{% endif %}" data-paper-id="{{ paper.id }}" data-saved="{{ 'true' if saved else 'false' }}" onclick="event.stopPropagation(); openFavModal('{{ paper.id }}', this)">{{ '★ 已收藏' if saved else '☆ 收藏' }}</button>
+                  <button class="btn btn-sm position-relative fav-btn {% if saved %}btn-success{% else %}btn-outline-success{% endif %}" data-paper-id="{{ paper.id }}" data-saved="{{ 'true' if saved else 'false' }}" onclick="event.stopPropagation(); openFavModal('{{ paper.id }}', this)">{{ lang_copy.favorite_saved if saved else lang_copy.favorite_unsaved }}</button>
                   {% if paper.github_url %}
                     <a class="btn btn-sm btn-outline-dark position-relative d-flex align-items-center justify-content-center logo-btn" href="{{ paper.github_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
                       <svg class="logo-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -230,6 +232,7 @@
 {% endif %}
 <script>
   (() => {
+    const copy = {{ lang_copy|tojson }};
     let overlay = document.querySelector('.thumb-overlay');
     let imgEl;
     let scale = 1;
@@ -316,22 +319,22 @@
       <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">保存到收藏夹</h5>
+            <h5 class="modal-title">${copy.modal_title}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <form id="favForm" class="d-flex flex-column gap-3">
               <input type="hidden" name="paper_id" id="favPaperId" value="">
-              <div id="favList" class="fav-list-scroll text-muted small">加载中...</div>
+              <div id="favList" class="fav-list-scroll text-muted small">${copy.modal_loading}</div>
               <div class="fav-actions">
                 <div class="mb-3">
-                  <label class="form-label">新建收藏夹</label>
+                  <label class="form-label">${copy.modal_new_label}</label>
                   <div class="input-group">
-                    <input class="form-control" type="text" name="new_favorite_name" id="newFavoriteName" placeholder="e.g. Vision 2025">
-                    <button class="btn btn-outline-primary" type="button" id="createFavoriteBtn">新建</button>
+                    <input class="form-control" type="text" name="new_favorite_name" id="newFavoriteName" placeholder="${copy.modal_new_placeholder}">
+                    <button class="btn btn-outline-primary" type="button" id="createFavoriteBtn">${copy.modal_create}</button>
                   </div>
                 </div>
-                <button class="btn btn-primary w-100" type="submit">保存</button>
+                <button class="btn btn-primary w-100" type="submit">${copy.modal_save}</button>
               </div>
             </form>
           </div>
@@ -389,7 +392,7 @@
       const createBtn = document.getElementById('createFavoriteBtn');
       const newFavInput = document.getElementById('newFavoriteName');
       document.getElementById('favPaperId').value = paperId;
-      list.innerHTML = '<p class="text-muted small mb-2">加载中...</p>';
+      list.innerHTML = `<p class="text-muted small mb-2">${copy.modal_loading}</p>`;
       showFavModal();
 
       const getCheckedIds = () => {
@@ -422,7 +425,7 @@
             list.appendChild(item);
           });
         } else {
-          list.innerHTML = '<p class="text-muted small mb-2">暂无收藏夹，请新建一个。</p>';
+          list.innerHTML = `<p class="text-muted small mb-2">${copy.modal_empty}</p>`;
         }
         if (btnEl && alreadyIn) {
           markFavButton(btnEl, true);
@@ -438,7 +441,7 @@
       fetchFavorites()
         .then(data => populate(data))
         .catch(() => {
-          list.innerHTML = '<p class="text-danger small">无法加载收藏夹列表</p>';
+          list.innerHTML = `<p class="text-danger small">${copy.modal_error}</p>`;
         });
 
       const postSave = () => {
@@ -490,12 +493,12 @@
       if (active) {
         btn.classList.remove('btn-outline-success');
         btn.classList.add('btn-success');
-        btn.innerText = '★ 已收藏';
+        btn.innerText = copy.favorite_saved;
         btn.dataset.saved = 'true';
       } else {
         btn.classList.add('btn-outline-success');
         btn.classList.remove('btn-success');
-        btn.innerText = '☆ 收藏';
+        btn.innerText = copy.favorite_unsaved;
         btn.dataset.saved = 'false';
       }
     }

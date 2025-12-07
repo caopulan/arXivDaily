@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS Users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    language_preference TEXT DEFAULT 'en'
 );
 
 CREATE TABLE IF NOT EXISTS Favorites (

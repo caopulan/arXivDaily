@@ -17,26 +17,41 @@ from .db import get_db
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _normalize_user_row(row):
+    if row is None:
+        return None
+    data = dict(row)
+    if not data.get("language_preference"):
+        data["language_preference"] = "en"
+    return data
+
+
 def _ensure_default_user():
     """Create and return the default user for no-auth mode."""
     db_conn = get_db()
     username = current_app.config.get("DEFAULT_USER_USERNAME", "default_user")
     password = current_app.config.get("DEFAULT_USER_PASSWORD", "")
     user = (
-        db_conn.execute("SELECT id, username FROM Users WHERE username = ?", (username,))
+        db_conn.execute(
+            "SELECT id, username, language_preference FROM Users WHERE username = ?",
+            (username,),
+        )
         .fetchone()
     )
     if user is None:
         db_conn.execute(
-            "INSERT OR IGNORE INTO Users (username, password) VALUES (?, ?)",
-            (username, password),
+            "INSERT OR IGNORE INTO Users (username, password, language_preference) VALUES (?, ?, ?)",
+            (username, password, "en"),
         )
         db_conn.commit()
         user = (
-            db_conn.execute("SELECT id, username FROM Users WHERE username = ?", (username,))
+            db_conn.execute(
+                "SELECT id, username, language_preference FROM Users WHERE username = ?",
+                (username,),
+            )
             .fetchone()
         )
-    return user
+    return _normalize_user_row(user)
 
 
 @bp.before_app_request
@@ -45,16 +60,22 @@ def load_logged_in_user():
         user = _ensure_default_user()
         session["user_id"] = user["id"]
         g.user = user
+        g.language_preference = user.get("language_preference", "en")
         return
     user_id = session.get("user_id")
     if user_id is None:
         g.user = None
     else:
-        g.user = (
+        row = (
             get_db()
-            .execute("SELECT id, username FROM Users WHERE id = ?", (user_id,))
+            .execute(
+                "SELECT id, username, language_preference FROM Users WHERE id = ?",
+                (user_id,),
+            )
             .fetchone()
         )
+        g.user = _normalize_user_row(row)
+    g.language_preference = (g.user or {}).get("language_preference", "en") if isinstance(g.user, dict) else "en"
 
 
 def login_required(view):
@@ -94,8 +115,8 @@ def signup():
         if error is None:
             db_conn = get_db()
             cursor = db_conn.execute(
-                "INSERT INTO Users (username, password) VALUES (?, ?)",
-                (username, password),
+                "INSERT INTO Users (username, password, language_preference) VALUES (?, ?, ?)",
+                (username, password, "en"),
             )
             db_conn.commit()
             session.clear()

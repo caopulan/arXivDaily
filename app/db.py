@@ -73,6 +73,13 @@ def apply_light_migrations() -> None:
     Does not drop or modify existing columns.
     """
     main_db = get_db()
+    _ensure_columns(
+        main_db,
+        "Users",
+        {
+            "language_preference": "TEXT DEFAULT 'en'",
+        },
+    )
     if not _table_exists(main_db, "UserFilters"):
         main_db.execute(
             """
