@@ -1,5 +1,16 @@
 # arXivDaily 📑
 
+<div align="center">
+
+[![GitHub Stars](https://img.shields.io/github/stars/caopulan/arXivDaily?style=social)](https://github.com/caopulan/arXivDaily/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/caopulan/arXivDaily?style=social)](https://github.com/caopulan/arXivDaily/network/members)
+
+[![License](https://img.shields.io/github/license/caopulan/arXivDaily?color=blue)](https://github.com/caopulan/arXivDaily/blob/main/LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-yellow)](https://huggingface.co/datasets/caopu/arXivDaily-data)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/caopulan/arXivDaily/pulls)
+
+</div>
 
 An elegant, locally deployable tool to browse, filter, and discover the latest ArXiv papers with a modernized card-style interface.
 
